@@ -116,7 +116,11 @@ def play_praise(client, voice, msg):
 
 
 def run_brothers():
-    camera = webrtc_streamer(key="camera", video_frame_callback=camera_cb)
+    camera = webrtc_streamer(
+        key="camera",
+        video_frame_callback=camera_cb,
+        rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
+    )
     while camera.state.playing:
         with ctx["frame_img_lock"]:
             img = ctx["frame_img"]
