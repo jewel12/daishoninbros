@@ -116,6 +116,8 @@ def play_praise(client, voice, msg):
 
 
 def run_brothers():
+    st.title("大承認AIブラザーズ")
+
     camera = webrtc_streamer(
         key="camera",
         video_frame_callback=camera_cb,
