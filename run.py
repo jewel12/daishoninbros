@@ -12,7 +12,6 @@ import streamlit as st
 from streamlit_webrtc import webrtc_streamer
 
 client = OpenAI()
-st.session_state.camera_img = None
 frame_img_container= {"img": None}
 img_lock = threading.Lock()
 
