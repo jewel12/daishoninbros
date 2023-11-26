@@ -69,22 +69,9 @@ def camera_cb(frame):
         ctx["frame_img"] = frame.to_image()
     return frame
 
-camera_ctx = webrtc_streamer(key="camera", video_frame_callback=camera_cb)
-
-def parse_msg(msg):
-    pt = r"(アドン|サムソン):(.+?)(?=\n|$)"
-    matches = re.findall(pt, msg)
-    return {name: speech for name, speech in matches}
-
-while camera_ctx.state.playing:
-    with ctx["frame_img_lock"]:
-        img = ctx["frame_img"]
-    if img is None:
-        continue
-
+def generate_praises(img):
     buf = BytesIO()
     img.save(buf, "jpeg")
-    container = st.empty()
     base64_img = base64.b64encode(buf.getvalue()).decode("utf-8")
     response = client.chat.completions.create(
         model = "gpt-4-vision-preview",
@@ -103,10 +90,19 @@ while camera_ctx.state.playing:
             }],
         max_tokens=200,
     )
-    msg = response.choices[0].message.content
-    print(msg)
-    praises = parse_msg(msg)
-    print(praises)
+    pt = r"(アドン|サムソン):(.+?)(?=\n|$)"
+    matches = re.findall(pt, response.choices[0].message.content)
+    return {name: speech for name, speech in matches}
+
+camera = webrtc_streamer(key="camera", video_frame_callback=camera_cb)
+
+while camera.state.playing:
+    with ctx["frame_img_lock"]:
+        img = ctx["frame_img"]
+    if img is None:
+        continue
+
+    praises = generate_praises(img)
 
     text_st = st.empty()
 
