@@ -1,11 +1,12 @@
-import threading
-import time
-from openai import OpenAI
-import re
 import base64
 import io
+import re
+import threading
+import time
 from io import BytesIO
+
 import streamlit as st
+from openai import OpenAI
 from streamlit_webrtc import webrtc_streamer
 
 system_msgs = [
@@ -123,8 +124,6 @@ def run_brothers():
             continue
 
         praises = generate_praises(openai_client, img)
-
-        text_st = st.empty()
 
         for brother, msg in praises.items():
             with st.chat_message(brother):
