@@ -1,12 +1,9 @@
 import threading
 import time
 from openai import OpenAI
-import requests
 import re
 import base64
 import io
-import sys
-import os
 from io import BytesIO
 import streamlit as st
 from streamlit_webrtc import webrtc_streamer
@@ -58,10 +55,14 @@ system_msgs = [
     }
 ]
 
-client = OpenAI()
+openai_client = OpenAI()
 ctx = {
     "frame_img": None,
     "frame_img_lock": threading.Lock(),
+}
+brother_voices = {
+    "アドン": "fable",
+    "サムソン": "echo"
 }
 
 def camera_cb(frame):
@@ -69,7 +70,7 @@ def camera_cb(frame):
         ctx["frame_img"] = frame.to_image()
     return frame
 
-def generate_praises(img):
+def generate_praises(client, img):
     buf = BytesIO()
     img.save(buf, "jpeg")
     base64_img = base64.b64encode(buf.getvalue()).decode("utf-8")
@@ -94,22 +95,11 @@ def generate_praises(img):
     matches = re.findall(pt, response.choices[0].message.content)
     return {name: speech for name, speech in matches}
 
-camera = webrtc_streamer(key="camera", video_frame_callback=camera_cb)
-
-while camera.state.playing:
-    with ctx["frame_img_lock"]:
-        img = ctx["frame_img"]
-    if img is None:
-        continue
-
-    praises = generate_praises(img)
-
-    text_st = st.empty()
-
+def play_praise(client, voice, msg):
     adon_response = client.audio.speech.create(
         model="tts-1",
-        voice="fable",
-        input=praises["アドン"],
+        voice=voice,
+        input=msg,
     )
     b64audio = base64.b64encode(io.BytesIO(adon_response.content).getvalue()).decode("utf-8")
     adon_audio_st = st.empty()
@@ -123,24 +113,26 @@ while camera.state.playing:
         unsafe_allow_html=True,
     )
 
-    samson_response = client.audio.speech.create(
-        model="tts-1",
-        voice="echo",
-        input=praises["サムソン"],
-    )
-    b64audio = base64.b64encode(io.BytesIO(samson_response.content).getvalue()).decode("utf-8")
 
-    time.sleep(3)
-    samson_audio_st = st.empty()
-    md = f"""
-        <audio controls autoplay="true">
-        <source src="data:audio/mp3;base64,{b64audio}" type="audio/mp3">
-        </audio>
-    """
-    samson_audio_st.markdown(
-        md,
-        unsafe_allow_html=True,
-    )
+def run_brothers():
+    camera = webrtc_streamer(key="camera", video_frame_callback=camera_cb)
+    while camera.state.playing:
+        with ctx["frame_img_lock"]:
+            img = ctx["frame_img"]
+        if img is None:
+            continue
 
-    text_st.text(praises)
-    time.sleep(15)
+        praises = generate_praises(openai_client, img)
+
+        text_st = st.empty()
+
+        for brother, msg in praises.items():
+            with st.chat_message(brother):
+                st.text(msg)
+                play_praise(openai_client, brother_voices[brother], praises[brother])
+                time.sleep(3) # 音声があんまり被らないように適当に待つ
+
+        time.sleep(15)
+
+if __name__ == "__main__":
+    run_brothers()
