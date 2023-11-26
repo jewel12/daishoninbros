@@ -11,19 +11,6 @@ from io import BytesIO
 import streamlit as st
 from streamlit_webrtc import webrtc_streamer
 
-client = OpenAI()
-frame_img_container= {"img": None}
-img_lock = threading.Lock()
-
-def camera_cb(frame):
-    with img_lock:
-        frame_img_container["img"] = frame.to_image()
-    return frame
-
-camera_ctx = webrtc_streamer(key="camera", video_frame_callback=camera_cb)
-
-old_img = None
-
 system_msgs = [
     {
         "role": "system",
@@ -71,14 +58,27 @@ system_msgs = [
     }
 ]
 
+client = OpenAI()
+ctx = {
+    "frame_img": None,
+    "frame_img_lock": threading.Lock(),
+}
+
+def camera_cb(frame):
+    with ctx["frame_img_lock"]:
+        ctx["frame_img"] = frame.to_image()
+    return frame
+
+camera_ctx = webrtc_streamer(key="camera", video_frame_callback=camera_cb)
+
 def parse_msg(msg):
     pt = r"(アドン|サムソン):(.+?)(?=\n|$)"
     matches = re.findall(pt, msg)
     return {name: speech for name, speech in matches}
 
 while camera_ctx.state.playing:
-    with img_lock:
-        img = frame_img_container["img"]
+    with ctx["frame_img_lock"]:
+        img = ctx["frame_img"]
     if img is None:
         continue
 
